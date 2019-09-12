@@ -161,15 +161,20 @@ class Validate extends Action implements CsrfAwareActionInterface
                 $this->updateOrderAddresses($checkoutData, $quote);
                 $shippingMethodCode = null;
                 if ($shippingMethod = $checkoutData->getData('selected_shipping_option')) {
-                    $shippingMethodCode = $shippingMethod['id'];
+                    $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
+                    if (empty($shippingMethod)) $shippingMethodCode = $shippingMethod['id'];
                 } else {
                     if ($shippingMethod = $this->getShippingMedthodFromOrderLines($checkoutData)) {
                         $shippingMethodCode = $shippingMethod['reference'];
                     }
                 }
                 if (isset($shippingMethodCode)) {
-                    $this->logger->info('Shipping method :' . print_r($shippingMethod, true));
-                    $quote->getShippingAddress()->setShippingMethod($this->convertShippingMethodCode($shippingMethodCode));
+                    $this->logger->info('Shipping method code:' . $this->convertShippingMethodCode($shippingMethodCode));
+                    $quote->getShippingAddress()
+                        ->setShippingMethod($this->convertShippingMethodCode($shippingMethodCode))
+                        ->setCollectShippingRates(true)
+                        ->collectShippingRates()
+                    ;
                 }
             }
             $quote->setData(ExtensionConstants::FORCE_ORDER_PLACE, true);
@@ -322,13 +327,29 @@ class Validate extends Action implements CsrfAwareActionInterface
         return false;
     }
 
+    private function getShippingFromKSSCarrierClass($carrierClass) {
+        $store = $this->storeManager->getStore();
+        $mappings = $this->scopeConfig->getValue('klarna/vsf/carrier_mapping', ScopeInterface::SCOPE_STORES, $store);
+        if ($mappings) {
+            $mappings = json_decode($mappings, true);
+            foreach($mappings as $item) {
+                if($item['kss_carrier'] == $carrierClass) {
+                    return $item['shipping_method'];
+                }
+            }
+        }
+        return '';
+
+    }
+
     /**
      * @param $shippingCode
      * @return string
      */
     private function convertShippingMethodCode($shippingCode)
     {
-        return $shippingCode . '_' . $shippingCode;
+        if (!strpos($shippingCode, '_')) return $shippingCode . '_' . $shippingCode;
+        return $shippingCode;
     }
 
     /**

@@ -31,6 +31,13 @@
                             <config_path>klarna/vsf/failed_link</config_path>
                             <comment>The VSF failed link will be redirected if the commit of the order fails.</comment>
                         </field>
+                        <field id="carrier_mapping" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                            <label>Shipping Method Mapping</label>
+                            <frontend_model>Kodbruket\VsfKco\Block\Adminhtml\Config\Carrier</frontend_model>
+                            <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
+                            <config_path>klarna/vsf/carrier_mapping</config_path>
+                            <comment>Mapping Shipping Method with Klarna Shipping Service Carrier</comment>
+                        </field>
                     </group>
                 </group>
             </group>
