@@ -161,7 +161,7 @@ class Validate extends Action implements CsrfAwareActionInterface
                 $this->updateOrderAddresses($checkoutData, $quote);
                 $shippingMethodCode = null;
                 if ($shippingMethod = $checkoutData->getData('selected_shipping_option')) {
-                    $shippingMethodString = json_encode($shippingMethod);
+                    $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
                     $quote->setExtShippingInfo($shippingMethodString);
                     $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
                     if (empty($shippingMethod)) $shippingMethodCode = $shippingMethod['id'];
