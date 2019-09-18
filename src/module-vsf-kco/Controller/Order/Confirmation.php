@@ -138,13 +138,6 @@ class Confirmation extends Action implements CsrfAwareActionInterface
         $resultRedirect = $this->resultRedirectFactory->create();
         if ($quote->getId()) {
             try {
-                $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/test.log');
-                $logger = new \Zend\Log\Logger();
-                $logger->addWriter($writer);
-                $logger->info(var_dump($quote));
-                $selectedShippingOptionJson = json_decode($quote->getDataByKey('selected_shipping_option'));
-                $logger->info(var_dump($selectedShippingOptionJson));
-                $logger->info(var_dump(htmlentities($selectedShippingOptionJson)));
                 $order = $this->quoteManagement->submit($quote);
                 $orderId = $order->getId();
                 if ($orderId) {
