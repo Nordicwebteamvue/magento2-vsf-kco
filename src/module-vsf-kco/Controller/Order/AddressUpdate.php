@@ -149,7 +149,7 @@ class AddressUpdate extends Action implements CsrfAwareActionInterface
 
             $quote->setExtShippingInfo($shippingMethodString);
 
-            if (empty($shippingMethod) || count($shippingMethod['delivery_details']) == 0) {
+            if (empty($shippingMethod) || !(array_key_exists('carrier', $shippingMethod['delivery_details']) && array_key_exists('class', $shippingMethod['delivery_details']))) {
                 $shippingMethodCode = $shippingMethod['id'];
             } else {
                 $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
