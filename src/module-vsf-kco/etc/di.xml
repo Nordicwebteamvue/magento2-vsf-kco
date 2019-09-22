@@ -8,30 +8,32 @@
             </argument>
         </arguments>
     </virtualType>
-
     <preference
         for="Klarna\Kp\Gateway\Command\Authorize"
         type="Kodbruket\VsfKco\Gateway\Command\Authorize"
     />
-
     <type name="\Klarna\Kp\Model\Payment\Kp">
         <plugin name="IsAvailableKPPlugin"
                 type="Kodbruket\VsfKco\Plugin\Kp\Model\Payment\Kp\IsAvailable" sortOrder="99" />
     </type>
-
     <type name="Kodbruket\VsfKco\Controller\Order\Validate">
         <arguments>
             <argument name="log" xsi:type="object">klarnaCallbackLogger</argument>
         </arguments>
     </type>
-
-    <!--<type name="Magento\Payment\Helper\Data">-->
-        <!--<plugin name="klarnaKpPaymentData"  disabled="true"/>-->
-    <!--</type>-->
-    <!--<type name="Magento\Quote\Model\Cart\ShippingMethodConverter">-->
-        <!--<plugin-->
-                <!--name="KodbruketKlarnaCheckTaxes"-->
-                <!--type="Kodbruket\VsfKco\Plugin\Quote\Model\Cart\ShippingMethodConverter\ModelToDataObject" sortOrder="1"-->
-        <!--/>-->
-    <!--</type>-->
+    <type name="Kodbruket\VsfKco\Controller\Order\AddressUpdate">
+        <arguments>
+            <argument name="log" xsi:type="object">klarnaCallbackLogger</argument>
+        </arguments>
+    </type>
+    <type name="Kodbruket\VsfKco\Controller\Order\ChangeCountry">
+        <arguments>
+            <argument name="log" xsi:type="object">klarnaCallbackLogger</argument>
+        </arguments>
+    </type>
+    <type name="Kodbruket\VsfKco\Controller\Order\ShippingOptionUpdate">
+        <arguments>
+            <argument name="log" xsi:type="object">klarnaCallbackLogger</argument>
+        </arguments>
+    </type>
 </config>
