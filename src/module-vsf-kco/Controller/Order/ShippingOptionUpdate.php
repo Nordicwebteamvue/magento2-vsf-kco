@@ -136,12 +136,151 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
     public function execute()
     {
         $data = $this->getKlarnaRequestData();
+        $quoteId = $this->getQuoteId();
+        $quote = $this->cartRepository->get($quoteId);
+        $shippingMethodCode = null;
 
-        $this->logger->info("Shipping option update:\n" . var_export($data, true));
+        $this->logger->info("Shipping option update (" . $quote->getId() . "):\n" . var_export($data, true));
+
+        $this->updateOrderAddresses($data, $quote);
+
+        if ($shippingMethod = $data->getData('selected_shipping_option')) {
+            $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
+
+            $quote->setExtShippingInfo($shippingMethodString);
+
+            if (empty($shippingMethod) || count($shippingMethod['delivery_details']) == 0) {
+                $shippingMethodCode = $shippingMethod['id'];
+            } else {
+                $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
+            }
+        } else {
+            if ($shippingMethod = $this->getShippingMedthodFromOrderLines($data)) {
+                $shippingMethodCode = $shippingMethod['reference'];
+            }
+        }
+
+        if (isset($shippingMethodCode)) {
+            $this->logger->info('Shipping method code:' . $this->convertShippingMethodCode($shippingMethodCode));
+            $quote->getShippingAddress()
+                ->setShippingMethod($this->convertShippingMethodCode($shippingMethodCode))
+                ->setCollectShippingRates(true)
+                ->collectShippingRates();
+        }
+
+        $this->cartRepository->save($quote);
 
         return $this->resultFactory->create(ResultFactory::TYPE_JSON)
             ->setData($data)
             ->setHttpResponseCode(200);
+    }
+
+    /**
+     * @param $shippingCode
+     * @return string
+     */
+    private function convertShippingMethodCode($shippingCode)
+    {
+        if (!strpos($shippingCode, '_')) return $shippingCode . '_' . $shippingCode;
+        return $shippingCode;
+    }
+
+    private function getShippingFromKSSCarrierClass($carrierClass) {
+        $store = $this->storeManager->getStore();
+        $mappings = $this->scopeConfig->getValue('klarna/vsf/carrier_mapping', ScopeInterface::SCOPE_STORES, $store);
+        if ($mappings) {
+            $mappings = json_decode($mappings, true);
+            foreach($mappings as $item) {
+                if($item['kss_carrier'] == $carrierClass) {
+                    return $item['shipping_method'];
+                }
+            }
+        }
+        return '';
+
+    }
+
+    /**
+     * @return int
+     */
+    private function getQuoteId()
+    {
+        $mask = $this->getKlarnaRequestData()->getData(
+            'merchant_reference2'
+        );
+
+        /** @var $quoteIdMask QuoteIdMask */
+        $quoteIdMask = $this->quoteIdMaskFactory->create()->load($mask, 'masked_id');
+        return $quoteIdMask->getQuoteId();
+    }
+
+    /**
+     * @param DataObject $checkoutData
+     * @return bool|mixed
+     */
+    private function getShippingMedthodFromOrderLines(DataObject $checkoutData)
+    {
+        $orderLines = $checkoutData->getData('order_lines');
+
+        if (is_array($orderLines)) {
+            foreach ($orderLines as $line) {
+                if (isset($line['type']) && $line['reference'] && $line['type'] === 'shipping_fee') {
+                    return $line;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param DataObject $checkoutData
+     * @param \Magento\Quote\Model\Quote|CartInterface $quote
+     * @throws \Magento\Framework\Exception\LocalizedException
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    private function updateOrderAddresses(DataObject $checkoutData, CartInterface $quote)
+    {
+        if (!$checkoutData->hasBillingAddress() && !$checkoutData->hasShippingAddress()) {
+            return;
+        }
+
+        $sameAsOther = $checkoutData->getShippingAddress() == $checkoutData->getBillingAddress();
+        $billingAddress = new DataObject($checkoutData->getBillingAddress());
+        $billingAddress->setSameAsOther($sameAsOther);
+        $shippingAddress = new DataObject($checkoutData->getShippingAddress());
+        $shippingAddress->setSameAsOther($sameAsOther);
+
+        if (!$quote->getCustomerId()) {
+            $websiteId = $quote->getStore()->getWebsiteId();
+            $customer = $this->customerFactory->create();
+            $customer->setWebsiteId($websiteId);
+            $customer->loadByEmail($billingAddress->getEmail());
+            if (!$customer->getEntityId()) {
+                $customer->setWebsiteId($websiteId)
+                    ->setStore($quote->getStore())
+                    ->setFirstname($billingAddress->getGivenName())
+                    ->setLastname($billingAddress->getFamilyName())
+                    ->setEmail($billingAddress->getEmail())
+                    ->setPassword($billingAddress->getEmail());
+                $customer->save();
+            }
+            $customer = $this->customerRepository->getById($customer->getEntityId());
+            $quote->assignCustomer($customer);
+        }
+
+        $quote->getBillingAddress()->addData(
+            $this->addressDataTransform->prepareMagentoAddress($billingAddress)
+        );
+
+        /**
+         * @todo  check use 'Billing as shiiping'
+         */
+        if ($checkoutData->hasShippingAddress()) {
+            $quote->setTotalsCollectedFlag(false);
+            $quote->getShippingAddress()->addData(
+                $this->addressDataTransform->prepareMagentoAddress($shippingAddress)
+            );
+        }
     }
 
     /**
@@ -162,7 +301,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
 
     /**
      * Create CSRF validation exception
-     * 
+     *
      * @param RequestInterface $request
      *
      * @return InvalidRequestException|null
@@ -174,7 +313,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
 
     /**
      * Validate for CSRF
-     * 
+     *
      * @param RequestInterface $request
      *
      * @return bool|null
