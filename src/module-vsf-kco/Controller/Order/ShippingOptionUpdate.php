@@ -135,9 +135,9 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
      */
     public function execute()
     {
-        $this->logger->info('Shipping option update');
-
         $data = $this->getKlarnaRequestData();
+
+        $this->logger->info("Shipping option update:\n" . var_export($data, true));
 
         return $this->resultFactory->create(ResultFactory::TYPE_JSON)
             ->setData($data)

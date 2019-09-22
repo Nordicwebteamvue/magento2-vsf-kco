@@ -135,9 +135,9 @@ class ChangeCountry extends Action implements CsrfAwareActionInterface
      */
     public function execute()
     {
-        $this->logger->info('Change country');
-
         $data = $this->getKlarnaRequestData();
+
+        $this->logger->info("Change country:\n" . var_export($data, true));
 
         return $this->resultFactory->create(ResultFactory::TYPE_JSON)
             ->setData($data)

@@ -135,9 +135,9 @@ class AddressUpdate extends Action implements CsrfAwareActionInterface
      */
     public function execute()
     {
-        $this->logger->info('Address update');
-
         $data = $this->getKlarnaRequestData();
+
+        $this->logger->info("Address update:\n" . var_export($data, true));
 
         return $this->resultFactory->create(ResultFactory::TYPE_JSON)
             ->setData($data)
