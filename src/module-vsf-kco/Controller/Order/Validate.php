@@ -162,7 +162,6 @@ class Validate extends Action implements CsrfAwareActionInterface
                 $shippingMethodCode = null;
                 if ($shippingMethod = $checkoutData->getData('selected_shipping_option')) {
                     $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
-        
                     $quote->setExtShippingInfo($shippingMethodString);
         
                     if (empty($shippingMethod) || !(array_key_exists('carrier', $shippingMethod['delivery_details']) && array_key_exists('class', $shippingMethod['delivery_details']))) {
@@ -170,6 +169,9 @@ class Validate extends Action implements CsrfAwareActionInterface
                     } else {
                         $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
                     }
+                    $quote->setExtShippingInfo($shippingMethodString);
+                    $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
+                    if (empty($shippingMethod)) $shippingMethodCode = $shippingMethod['id'];
                 } else {
                     if ($shippingMethod = $this->getShippingMedthodFromOrderLines($checkoutData)) {
                         $shippingMethodCode = $shippingMethod['reference'];
