@@ -22,6 +22,7 @@ use Magento\Quote\Model\QuoteIdMask;
 use Magento\Quote\Model\QuoteIdMaskFactory;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Quote\Model\Quote\Address\Rate;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -82,6 +83,11 @@ class Validate extends Action implements CsrfAwareActionInterface
     private $storeManager;
 
     /**
+     * @var Rate
+     */
+    private $shippingRate;
+
+    /**
      * @var ScopeConfigInterface
      */
     private $scopeConfig;
@@ -111,7 +117,8 @@ class Validate extends Action implements CsrfAwareActionInterface
         CustomerRepositoryInterface $customerRepository,
         QuoteIdMaskFactory $quoteIdMaskFactory,
         StoreManagerInterface $storeManager,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        Rate $shippingRate
     ) {
         parent::__construct(
             $context
@@ -126,6 +133,7 @@ class Validate extends Action implements CsrfAwareActionInterface
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
         $this->scopeConfig = $scopeConfig;
         $this->storeManager = $storeManager;
+        $this->shippingRate = $shippingRate;
     }
 
     /**
@@ -163,32 +171,38 @@ class Validate extends Action implements CsrfAwareActionInterface
                 if ($shippingMethod = $checkoutData->getData('selected_shipping_option')) {
                     $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
                     $quote->setExtShippingInfo($shippingMethodString);
-        
                     if (empty($shippingMethod) || !(array_key_exists('carrier', $shippingMethod['delivery_details']) && array_key_exists('class', $shippingMethod['delivery_details']))) {
                         $shippingMethodCode = $shippingMethod['id'];
                     } else {
                         $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
                     }
-                    $quote->setExtShippingInfo($shippingMethodString);
-                    $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
-                    if (empty($shippingMethod)) $shippingMethodCode = $shippingMethod['id'];
                 } else {
                     if ($shippingMethod = $this->getShippingMedthodFromOrderLines($checkoutData)) {
                         $shippingMethodCode = $shippingMethod['reference'];
                     }
                 }
                 if (isset($shippingMethodCode)) {
-                    $this->logger->info('Shipping method code:' . $this->convertShippingMethodCode($shippingMethodCode));
+                    $this->logger->info(
+                        'Shipping method code converted: ' .
+                        $this->convertShippingMethodCode($shippingMethodCode) .
+                        ' vs: ' .
+                        $shippingMethodCode);
                     $quote->getShippingAddress()
-                        ->setShippingMethod($this->convertShippingMethodCode($shippingMethodCode))
                         ->setCollectShippingRates(true)
-                        ->collectShippingRates()
-                    ;
+                        ->collectShippingRates();
+                    $this->shippingRate
+                        ->setCode($this->convertShippingMethodCode($shippingMethodCode))
+                        ->getPrice(1);
+                    $quote->getShippingAddress()
+                        ->setShippingMethod('servicepoint_servicepoint')
+                        ->save();
+
+                    $quote->getShippingAddress()->addShippingRate($this->shippingRate);
+                    $quote->collectTotals();
                 }
             }
             $quote->setData(ExtensionConstants::FORCE_ORDER_PLACE, true);
             $quote->getShippingAddress()->setPaymentMethod(\Klarna\Kp\Model\Payment\Kp::METHOD_CODE);
-
             $payment = $quote->getPayment();
             $payment->importData(['method' => \Klarna\Kp\Model\Payment\Kp::METHOD_CODE]);
             $payment->setAdditionalInformation(ExtensionConstants::FORCE_ORDER_PLACE, true);

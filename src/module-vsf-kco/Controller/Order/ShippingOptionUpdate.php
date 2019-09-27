@@ -17,6 +17,7 @@ use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\DataObject;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Quote\Model\QuoteRepository as MageQuoteRepository;
 use Magento\Quote\Api\Data\CartInterface;
 use Magento\Quote\Model\QuoteIdMask;
 use Magento\Quote\Model\QuoteIdMaskFactory;
@@ -36,6 +37,11 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
      * @var CartRepositoryInterface
      */
     private $cartRepository;
+
+    /**
+     * @var MageQuoteRepository
+     */
+    private $mageQuoteRepository;
 
     /**
      * @var DataObject
@@ -87,6 +93,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
      * @param Context $context
      * @param LoggerInterface $logger
      * @param CartRepositoryInterface $cartRepository
+     * @param MageQuoteRepository $mageQuoteRepository
      * @param Address $addressDataTransform
      * @param OrderFactory $klarnaOrderFactory
      * @param CustomerFactory $customerFactory
@@ -100,6 +107,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
         Context $context,
         LoggerInterface $logger,
         CartRepositoryInterface $cartRepository,
+        MageQuoteRepository $mageQuoteRepository,
         Address $addressDataTransform,
         OrderFactory $klarnaOrderFactory,
         CustomerFactory $customerFactory,
@@ -114,6 +122,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
         );
         $this->logger = $logger;
         $this->cartRepository = $cartRepository;
+        $this->mageQuoteRepository = $mageQuoteRepository;
         $this->addressDataTransform = $addressDataTransform;
         $this->klarnaOrderFactory = $klarnaOrderFactory;
         $this->klarnaOrderRepository = $klarnaOrderRepository;
@@ -137,41 +146,89 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
     {
         $data = $this->getKlarnaRequestData();
         $quoteId = $this->getQuoteId();
-        $quote = $this->cartRepository->get($quoteId);
+        $quote = $this->mageQuoteRepository->get($quoteId);
         $shippingMethodCode = null;
+        $shippingDescription = "Shipping";
 
         $this->logger->info("Shipping option update (" . $quote->getId() . "):\n" . var_export($data, true));
 
-        $this->updateOrderAddresses($data, $quote);
+        try {
+            if ($shippingMethod = $data->getData('selected_shipping_option')) {
+                $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
 
-        if ($shippingMethod = $data->getData('selected_shipping_option')) {
-            $shippingMethodString = json_encode($shippingMethod, JSON_UNESCAPED_UNICODE);
+                $quote->setExtShippingInfo($shippingMethodString);
+                $this->mageQuoteRepository->save($quote);
 
-            $quote->setExtShippingInfo($shippingMethodString);
+                if (empty($shippingMethod) || !(array_key_exists('carrier', $shippingMethod['delivery_details']) && array_key_exists('class', $shippingMethod['delivery_details']))) {
+                    $shippingMethodCode = $shippingMethod['id'];
+                } else {
+                    $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
+                }
 
-            if (empty($shippingMethod) || !(array_key_exists('carrier', $shippingMethod['delivery_details']) && array_key_exists('class', $shippingMethod['delivery_details']))) {
-                $shippingMethodCode = $shippingMethod['id'];
+                $shippingDescription = $shippingMethod['name'];
             } else {
-                $shippingMethodCode = $this->getShippingFromKSSCarrierClass($shippingMethod['delivery_details']['carrier'].'_'.$shippingMethod['delivery_details']['class']);
+                if ($shippingMethod = $this->getShippingMedthodFromOrderLines($data)) {
+                    $shippingMethodCode = $shippingMethod['reference'];
+                }
             }
-        } else {
-            if ($shippingMethod = $this->getShippingMedthodFromOrderLines($data)) {
-                $shippingMethodCode = $shippingMethod['reference'];
+
+            if (isset($shippingMethodCode)) {
+                $quote->setTotalsCollectedFlag(false);
+                $quote->getShippingAddress()->setCollectShippingRates(true)->collectShippingRates();;
+                $quote->getShippingAddress()->setShippingMethod($shippingMethodCode);
+                $quote->getShippingAddress()->setShippingDescription($shippingDescription);
+                $quote->getShippingAddress()->save();
+                $quote->collectTotals();
             }
+
+        } catch (\Exception $e) {
+            $this->logger->info($e->getMessage());
         }
 
-        if (isset($shippingMethodCode)) {
-            $this->logger->info('Shipping method code:' . $this->convertShippingMethodCode($shippingMethodCode));
-            $quote->getShippingAddress()
-                ->setShippingMethod($this->convertShippingMethodCode($shippingMethodCode))
-                ->setCollectShippingRates(true)
-                ->collectShippingRates();
+        $orderLines = $data->getOrderLines();
+        $i = 0;
+
+        foreach ($orderLines as $orderLine) {
+            if ($orderLine['type'] == 'shipping_fee') {
+                unset($orderLines[$i]);
+            }
+            $i++;
         }
 
-        $this->cartRepository->save($quote);
+        $orderLines[] = [
+            'type' => 'shipping_fee',
+            'name' => $quote->getShippingAddress()->getShippingDescription(),
+            'quantity' => 1,
+            'unit_price' => intval($quote->getShippingAddress()->getShippingInclTax() * 100),
+            'tax_rate' => 2500,
+            'total_amount' =>  intval($quote->getShippingAddress()->getShippingInclTax() * 100.0),
+            'total_tax_amount' => intval( $quote->getShippingAddress()->getShippingTaxAmount() * 100)
+       ];
 
-        return $this->resultFactory->create(ResultFactory::TYPE_JSON)
-            ->setData($data)
+       $data->setOrderLines(array_values($orderLines));
+
+       $data->setOrderAmount(intval(round($quote->getShippingAddress()->getGrandTotal() * 100)));
+       $data->setOrderTaxAmount(intval(round($quote->getShippingAddress()->getTaxAmount() * 100)));
+
+       $keepData = [
+           'order_amount',
+           'order_tax_amount',
+           'order_lines',
+           'purchase_currency'
+       ];
+
+       $array = $data->toArray();
+
+       foreach ($array as $key => $value) {
+           if (in_array($key, $keepData)) {
+               continue;
+           } else {
+               unset($array[$key]);
+           }
+       }
+
+       return $this->resultFactory->create(ResultFactory::TYPE_JSON)
+            ->setJsonData($data->toJson())
             ->setHttpResponseCode(200);
     }
 
