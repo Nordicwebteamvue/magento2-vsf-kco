@@ -185,7 +185,7 @@ class Validate extends Action implements CsrfAwareActionInterface
                 ->collectTotals()
                 ->save();
 
-            return $this->resultFactory->create(ResultFactory::TYPE_RAW)->setHttpResponseCode(200);
+            return $this->resultFactory->create(ResultFactory::TYPE_RAW)->setContents("")->setHttpResponseCode(200);
         } catch (\Exception $exception) {
             $this->logger->critical('validation save kco Order' . $exception->getMessage());
             return $this->setValidateFailedResponse();
