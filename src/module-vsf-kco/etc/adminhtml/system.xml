@@ -18,6 +18,12 @@
                        showInStore="1"
                        translate="label">
                     <label>Klarna VueStoreFront</label>
+                    <field id="payment_method_code" translate="label" type="text" showInDefault="1" showInWebsite="1"
+                           showInStore="1">
+                        <label>Klarna payment method</label>
+                        <config_path>klarna/vsf/payment_method_code</config_path>
+                        <comment>Select between klarna_kp and klarna_kco.</comment>
+                    </field>
                     <field id="successful_link" translate="label" type="text" showInDefault="1" showInWebsite="1"
                            showInStore="1">
                         <label>Successful Link</label>
