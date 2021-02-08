@@ -151,10 +151,14 @@ class Validate extends Action implements CsrfAwareActionInterface
                 }
             }
 
+            $store = $this->storeManager->getStore();
+            $paymentMethodCode = $this->scopeConfig->getValue('klarna/vsf/payment_method_code', ScopeInterface::SCOPE_STORES, $store);
+
+
             $quote->setData(ExtensionConstants::FORCE_ORDER_PLACE, true);
-            $quote->getShippingAddress()->setPaymentMethod(\Klarna\Kp\Model\Payment\Kp::METHOD_CODE);
+            $quote->getShippingAddress()->setPaymentMethod($paymentMethodCode);
             $payment = $quote->getPayment();
-            $payment->importData(['method' => \Klarna\Kp\Model\Payment\Kp::METHOD_CODE]);
+            $payment->importData(['method' => $paymentMethodCode]);
             $payment->setAdditionalInformation(ExtensionConstants::FORCE_ORDER_PLACE, true);
             $payment->setAdditionalInformation(ExtensionConstants::KLARNA_ORDER_ID, $klarnaOderId);
 

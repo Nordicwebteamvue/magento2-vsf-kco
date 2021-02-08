@@ -14,76 +14,87 @@
     <system>
         <section id="payment">
             <group id="klarna_section" sortOrder="6" showInDefault="1" showInWebsite="1" showInStore="1">
-                <group id="klarna">
-                    <group id="klarna_vsf" type="text" sortOrder="102" showInDefault="1" showInWebsite="1"
-                           showInStore="1"
-                           translate="label">
-                        <label>Klarna VueStoreFront</label>
-                        <field id="successful_link" translate="label" type="text" showInDefault="1" showInWebsite="1"
-                               showInStore="1">
-                            <label>Successful Link</label>
-                            <config_path>klarna/vsf/successful_link</config_path>
-                            <comment>The VSF successful link will be redirected if the commit of the order succeeds.</comment>
-                        </field>
-                        <field id="failed_link" translate="label" type="text" showInDefault="1" showInWebsite="1"
-                               showInStore="1">
-                            <label>Failed Link</label>
-                            <config_path>klarna/vsf/failed_link</config_path>
-                            <comment>The VSF failed link will be redirected if the commit of the order fails.</comment>
-                        </field>
-                        <field id="carrier_mapping" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                            <label>Shipping Method Mapping</label>
-                            <frontend_model>Kodbruket\VsfKco\Block\Adminhtml\Config\Carrier</frontend_model>
-                            <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
-                            <config_path>klarna/vsf/carrier_mapping</config_path>
-                            <comment>Mapping Shipping Method with Klarna Shipping Service Carrier.</comment>
-                        </field>
-                        <field id="create_order_using_queue" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1" translate="label" type="select">
-                            <label>Create Magento order using queue ?</label>
-                            <config_path>klarna/vsf/create_order_using_queue</config_path>
-                            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                            <comment>Select YES if you want to use Magento queue to create order in Klarna callback.</comment>
-                        </field>
-                    </group>
-                    <group id="cancel" type="text" sortOrder="103" showInDefault="1" showInWebsite="1"
-                           showInStore="1"
-                           translate="label">
-                        <label>Cancel Order Settings</label>
-                        <field id="allow" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1" translate="label" type="select">
-                            <label>Can Cancel Orders In Klarna?</label>
-                            <config_path>klarna/cancel/allow</config_path>
-                            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                            <comment>Select YES if you want to cancel the order in Klarna in case the callback could not create order in Magento.</comment>
-                        </field>
-                        <field id="failing_order_status" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="60" translate="label" type="select">
-                            <label>Failing Klarna Orders Status</label>
-                            <config_path>klarna/cancel/failing_order_status</config_path>
-                            <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
-                            <comment>Select status of failing Klarna orders should get</comment>
-                        </field>
-                        <field id="send_mail" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1" translate="label" type="select">
-                            <label>Send Mail To Admin When Order Get Cancelled</label>
-                            <config_path>klarna/cancel/send_mail</config_path>
-                            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                        </field>
-                        <field id="report_email" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="80" translate="label" type="text">
-                            <label>Email</label>
-                            <config_path>klarna/cancel/report_email</config_path>
-                            <comment>The email will receive notification if order fails.</comment>
-                            <depends>
-                                <field id="send_mail">1</field>
-                            </depends>
-                        </field>
-                    </group>
-                    <group id="tracking" type="text" sortOrder="203" showInDefault="1" showInWebsite="1" showInStore="1" translate="label">
-                        <label>Klarna Event Tracking</label>
-                        <field id="enable" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1" translate="label" type="select">
-                            <label>Logs Klarna Push &amp; Confirmation Events?</label>
-                            <config_path>klarna/tracking/enable</config_path>
-                            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                            <comment>Select YES if you want to log Klarna Push &amp; Confirmation events into database.</comment>
-                        </field>
-                    </group>
+                <group id="klarna_vsf" type="text" sortOrder="102" showInDefault="1" showInWebsite="1"
+                       showInStore="1"
+                       translate="label">
+                    <label>Klarna VueStoreFront</label>
+                    <field id="successful_link" translate="label" type="text" showInDefault="1" showInWebsite="1"
+                           showInStore="1">
+                        <label>Successful Link</label>
+                        <config_path>klarna/vsf/successful_link</config_path>
+                        <comment>The VSF successful link will be redirected if the commit of the order succeeds.
+                        </comment>
+                    </field>
+                    <field id="failed_link" translate="label" type="text" showInDefault="1" showInWebsite="1"
+                           showInStore="1">
+                        <label>Failed Link</label>
+                        <config_path>klarna/vsf/failed_link</config_path>
+                        <comment>The VSF failed link will be redirected if the commit of the order fails.</comment>
+                    </field>
+                    <field id="carrier_mapping" translate="label" type="text" sortOrder="20" showInDefault="1"
+                           showInWebsite="1" showInStore="1">
+                        <label>Shipping Method Mapping</label>
+                        <frontend_model>Kodbruket\VsfKco\Block\Adminhtml\Config\Carrier</frontend_model>
+                        <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
+                        <config_path>klarna/vsf/carrier_mapping</config_path>
+                        <comment>Mapping Shipping Method with Klarna Shipping Service Carrier.</comment>
+                    </field>
+                    <field id="create_order_using_queue" sortOrder="50" showInDefault="1" showInWebsite="1"
+                           showInStore="1" translate="label" type="select">
+                        <label>Create Magento order using queue ?</label>
+                        <config_path>klarna/vsf/create_order_using_queue</config_path>
+                        <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                        <comment>Select YES if you want to use Magento queue to create order in Klarna callback.
+                        </comment>
+                    </field>
+                </group>
+                <group id="cancel" type="text" sortOrder="103" showInDefault="1" showInWebsite="1"
+                       showInStore="1"
+                       translate="label">
+                    <label>Cancel Order Settings</label>
+                    <field id="allow" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1"
+                           translate="label" type="select">
+                        <label>Can Cancel Orders In Klarna?</label>
+                        <config_path>klarna/cancel/allow</config_path>
+                        <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                        <comment>Select YES if you want to cancel the order in Klarna in case the callback could not
+                            create order in Magento.
+                        </comment>
+                    </field>
+                    <field id="failing_order_status" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="60"
+                           translate="label" type="select">
+                        <label>Failing Klarna Orders Status</label>
+                        <config_path>klarna/cancel/failing_order_status</config_path>
+                        <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
+                        <comment>Select status of failing Klarna orders should get</comment>
+                    </field>
+                    <field id="send_mail" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1"
+                           translate="label" type="select">
+                        <label>Send Mail To Admin When Order Get Cancelled</label>
+                        <config_path>klarna/cancel/send_mail</config_path>
+                        <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    </field>
+                    <field id="report_email" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="80"
+                           translate="label" type="text">
+                        <label>Email</label>
+                        <config_path>klarna/cancel/report_email</config_path>
+                        <comment>The email will receive notification if order fails.</comment>
+                        <depends>
+                            <field id="send_mail">1</field>
+                        </depends>
+                    </field>
+                </group>
+                <group id="tracking" type="text" sortOrder="203" showInDefault="1" showInWebsite="1" showInStore="1"
+                       translate="label">
+                    <label>Klarna Event Tracking</label>
+                    <field id="enable" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1"
+                           translate="label" type="select">
+                        <label>Logs Klarna Push &amp; Confirmation Events?</label>
+                        <config_path>klarna/tracking/enable</config_path>
+                        <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                        <comment>Select YES if you want to log Klarna Push &amp; Confirmation events into database.
+                        </comment>
+                    </field>
                 </group>
             </group>
         </section>
