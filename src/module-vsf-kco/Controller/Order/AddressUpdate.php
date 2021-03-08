@@ -227,7 +227,9 @@ class AddressUpdate extends Action implements CsrfAwareActionInterface
      */
     private function convertShippingMethodCode($shippingCode)
     {
-        if (!strpos($shippingCode, '_')) return $shippingCode . '_' . $shippingCode;
+        if(!strpos(shippingCode, '_')) {
+            return $shippingCode === 'bestway' ? 'tablerate_bestway' : $shippingCode .'_'.$shippingCode;
+        }
         return $shippingCode;
     }
 
