@@ -41,7 +41,7 @@
                            showInStore="1">
                         <label>Payment method</label>
                         <config_path>klarna/vsf/payment_method_code</config_path>
-                        <comment>Supporting kco & kp payment menthod.</comment>
+                        <comment>Supporting kco and kp payment menthod.</comment>
                     </field>
                     <field id="carrier_mapping" translate="label" type="text" sortOrder="20" showInDefault="1"
                            showInWebsite="1" showInStore="1">
