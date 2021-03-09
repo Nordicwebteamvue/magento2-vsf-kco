@@ -226,7 +226,7 @@ class ShippingOptionUpdate extends Action implements CsrfAwareActionInterface
      */
     private function convertShippingMethodCode($shippingCode)
     {
-        if(!strpos(shippingCode, '_')) {
+        if(!strpos($shippingCode, '_')) {
             return $shippingCode === 'bestway' ? 'tablerate_bestway' : $shippingCode .'_'.$shippingCode;
         }
         return $shippingCode;
