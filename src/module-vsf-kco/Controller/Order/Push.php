@@ -1,4 +1,5 @@
 <?php
+
 namespace Kodbruket\VsfKco\Controller\Order;
 
 use Klarna\Core\Api\OrderRepositoryInterface;
@@ -22,6 +23,9 @@ use Kodbruket\VsfKco\Model\Klarna\DataTransform\Request\Address as AddressDataTr
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Model\CustomerFactory;
 use Kodbruket\VsfKco\Helper\Data as VsfKcoHelper;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Store\Model\ScopeInterface;
+
 
 /**
  * Class Push
@@ -92,6 +96,11 @@ class Push extends Action implements CsrfAwareActionInterface
     private $helper;
 
     /**
+     * @var ScopeConfigInterface
+     */
+    private $scopeConfig;
+
+    /**
      * Push constructor.
      * @param Context $context
      * @param LoggerInterface $logger
@@ -107,6 +116,7 @@ class Push extends Action implements CsrfAwareActionInterface
      * @param CustomerFactory $customerFactory
      * @param EmailHelper $emailHelper
      * @param VsfKcoHelper $helper
+     * @param ScopeConfigInterface $scopeConfig
      */
     public function __construct(
         Context $context,
@@ -121,8 +131,10 @@ class Push extends Action implements CsrfAwareActionInterface
         AddressDataTransform $addressDataTransform,
         CustomerRepositoryInterface $customerRepository,
         CustomerFactory $customerFactory,
-        VsfKcoHelper $helper
-    ) {
+        VsfKcoHelper $helper,
+        ScopeConfigInterface $scopeConfig
+    )
+    {
         $this->logger = $logger;
         $this->klarnaOrderFactory = $klarnaOrderFactory;
         $this->klarnaOrderRepository = $klarnaOrderRepository;
@@ -132,9 +144,11 @@ class Push extends Action implements CsrfAwareActionInterface
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
         $this->mageOrderRepository = $mageOrderRepository;
         $this->addressDataTransform = $addressDataTransform;
-        $this->customerRepository   = $customerRepository;
-        $this->customerFactory      = $customerFactory;
+        $this->customerRepository = $customerRepository;
+        $this->customerFactory = $customerFactory;
         $this->helper = $helper;
+        $this->scopeConfig = $scopeConfig;
+
         parent::__construct(
             $context
         );
@@ -177,8 +191,8 @@ class Push extends Action implements CsrfAwareActionInterface
 
         $quoteId = $quoteIdMask->getQuoteId();
 
-        if( (int)$quoteId == 0 && ctype_digit(strval($maskedId)) ){
-            $quoteId = (int) $maskedId;
+        if ((int)$quoteId == 0 && ctype_digit(strval($maskedId))) {
+            $quoteId = (int)$maskedId;
         }
 
         $quote = $this->cartRepository->get($quoteId);
@@ -190,9 +204,9 @@ class Push extends Action implements CsrfAwareActionInterface
         /**
          *  Update shipping/billing address for quote.
          */
-        $this->helper->trackEvent(self::EVENT_NAME, $klarnaOrderId, null, 'Start Updating Order Address From Pushing Klarna',  'Quote ID: ' . $quote->getId());
+        $this->helper->trackEvent(self::EVENT_NAME, $klarnaOrderId, null, 'Start Updating Order Address From Pushing Klarna', 'Quote ID: ' . $quote->getId());
         $this->updateOrderAddresses($placedKlarnaOrder, $quote);
-        $this->helper->trackEvent(self::EVENT_NAME, $klarnaOrderId, null, 'End Order Address Update From Pushing Klarna',  'Quote ID: ' . $quote->getId());
+        $this->helper->trackEvent(self::EVENT_NAME, $klarnaOrderId, null, 'End Order Address Update From Pushing Klarna', 'Quote ID: ' . $quote->getId());
 
         /**
          * Create order and acknowledged
@@ -239,8 +253,14 @@ class Push extends Action implements CsrfAwareActionInterface
             $this->logger->error(sprintf('Klarna order doesn\'t have billing and shipping address for quoteId %s', $quote->getId()));
             return;
         }
-
-        $sameAsOther = $checkoutData->getShippingAddress() == $checkoutData->getBillingAddress();
+        $store = $this->storeManager->getStore();
+        $shippingFromMerchantData = $this->scopeConfig->getValue('klarna/vsf/shipping_from_merchant_data', ScopeInterface::SCOPE_STORES, $store);
+        $sameAsOther = $checkoutData->getShippingAddress()->getData() == $checkoutData->getBillingAddress();
+        if ($shippingFromMerchantData){
+            $sameAsOther = false;
+            //TODO: проверка shipping pltcm
+//            $sameAsOther = $quote->getShippingAddress() == $checkoutData->getBillingAddress();
+        }
 
         $billingAddress = new DataObject($checkoutData->getBillingAddress());
 
@@ -282,12 +302,36 @@ class Push extends Action implements CsrfAwareActionInterface
         );
 
 
-        $this->logger->info(sprintf('Updated Billing Address Data for QuoteId %s :', $quote->getId()).print_r($quote->getBillingAddress()->getData(),true));
+        $this->logger->info(sprintf('Updated Billing Address Data for QuoteId %s :', $quote->getId()) . print_r($quote->getBillingAddress()->getData(), true));
 
         /**
          * @todo  check use 'Billing as shiiping'
          */
-        if ($checkoutData->hasShippingAddress()) {
+
+        if ($shippingFromMerchantData) {
+            $merchantData = $checkoutData->getMerchantData();
+            if ($merchantData) {
+                $decodesMerchantData = json_decode($merchantData, true);
+                if ($decodesMerchantData && $decodesMerchantData['shipping']) {
+
+                    /**
+                     * $quote->setTotalsCollectedFlag(false);
+                     **/
+
+                    $quote->getShippingAddress()->addData(
+                        $this->addressDataTransform->prepareMagentoAddress(new DataObject($decodesMerchantData['shipping']))
+                    );
+
+                    $this->logger->info(sprintf('Updated Shipping Address Data for QuoteId %s :', $quote->getId()) . print_r($quote->getShippingAddress()->getData(), true));
+
+
+                    $this->logger->info('TEST: ' . print_r($this->addressDataTransform->prepareMagentoAddress(new DataObject($decodesMerchantData['shipping'])), 1));
+
+
+                    $this->logger->info('VS: ' . print_r($this->addressDataTransform->prepareMagentoAddress($shippingAddress), 1));
+                }
+            }
+        } elseif ($checkoutData->hasShippingAddress()) {
 
             $quote->setTotalsCollectedFlag(false);
 
@@ -295,7 +339,7 @@ class Push extends Action implements CsrfAwareActionInterface
                 $this->addressDataTransform->prepareMagentoAddress($shippingAddress)
             );
 
-            $this->logger->info(sprintf('Updated Shipping Address Data for QuoteId %s :', $quote->getId()).print_r($quote->getShippingAddress()->getData(),true));
+            $this->logger->info(sprintf('Updated Shipping Address Data for QuoteId %s :', $quote->getId()) . print_r($quote->getShippingAddress()->getData(), true));
         }
 
         $this->logger->info('End Updating Order Address From Pushing Klarna');
